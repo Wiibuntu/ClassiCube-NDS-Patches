@@ -3,26 +3,24 @@
 
 #include <nds.h>
 #include <nds/arm9/videoGL.h>
-#include <stdint.h> // for glFixed
 
 #define FP(x)        ((int)((x)*4096))
 #define MAX_VERTS    4096
 
 // DS‐friendly textured vertex
 typedef struct {
-    int            x, y, z;    // 12.4 fixed‐point
-    int            u, v;       // 12.4 fixed‐point
-    unsigned int   color;      // 0xRRGGBB
+    int           x, y, z;   // 12.4 fixed‐point
+    int           u, v;      // 12.4 fixed‐point
+    unsigned int  color;     // 0xRRGGBB
 } VertexTextured;
 
 static VertexTextured dsVertices[MAX_VERTS];
 static int           dsVertCount;
 
-// Use DS GL’s projection/modelview enums directly
+// Use DS GL’s own projection/modelview enums
 static int matrix_modes[2] = { GL_PROJECTION, GL_MODELVIEW };
-static int matrix_position  = 0; // 0 = proj, 1 = modelview
+static int matrix_position  = 0; // 0 = projection, 1 = modelview
 
-// Initialize the DS 3D engine
 void Graphics_InitDS(void) {
     videoSetMode(MODE_5_2D | DISPLAY_BG0_ACTIVE);
     vramSetBankA(VRAM_A_TEXTURE);
@@ -41,12 +39,11 @@ void Graphics_InitDS(void) {
     glLoadIdentity();
 }
 
-// Start of frame – clear our batch (DS GL-lite doesn’t have glClear)
 void Graphics_BeginFrameDS(void) {
+    // DS GL-lite has no glClear; just reset our batch
     dsVertCount = 0;
 }
 
-// Matrix stack ops (load/mult aren’t exposed in DS-GL-lite)
 void Graphics_SetMatrixDS(int mode) {
     if (mode < 0 || mode > 1) return;
     matrix_position = mode;
@@ -57,12 +54,10 @@ void Graphics_MultMatrixDS(const float *m) { /* no-op on DS */ }
 void Graphics_PushMatrixDS(void)       { glPushMatrix(); }
 void Graphics_PopMatrixDS(void)        { glPopMatrix(1); }
 
-// We don’t support colour-only paths on DS
 void Graphics_SetVertexFormatDS(VertexFormat fmt) {
-    (void)fmt;
+    (void)fmt; // DS only does textured verts
 }
 
-// Enqueue one textured vertex
 void Graphics_QueueTexturedVertexDS(float x, float y, float z,
                                     float u, float v, unsigned int c) {
     if (dsVertCount >= MAX_VERTS) return;
@@ -71,7 +66,6 @@ void Graphics_QueueTexturedVertexDS(float x, float y, float z,
     };
 }
 
-// Flush all queued quads
 void Graphics_DrawBufferedDS(void) {
     if (!dsVertCount) return;
 
@@ -83,11 +77,8 @@ void Graphics_DrawBufferedDS(void) {
                   (v.color >>  8) & 0xFF,
                    v.color        & 0xFF);
         glTexCoord2t16(v.u, v.v);
-        // pass fixed‐point xyz as a 3-vector
-        {
-            glFixed vec[3] = { v.x, v.y, v.z };
-            glVertex3v16(vec);
-        }
+        // direct fixed-point coords
+        glVertex3v16(v.x, v.y, v.z);
     }
     glEnd();
     glFlush(0);
@@ -96,16 +87,15 @@ void Graphics_DrawBufferedDS(void) {
     dsVertCount = 0;
 }
 
-// Upload/update a texture on the DS
-void Graphics_UpdateTextureDS(int id, const BitmapCol *src) {
+void Graphics_UpdateTextureDS(TextureID id, const BitmapCol *src) {
     int w = Graphics_GetTextureWidth(id);
     int h = Graphics_GetTextureHeight(id);
 
     glBindTexture(0, id);
-    glTexImage2D(0, 0, GL_RGB, w, h, 0, GL_RGB, GL_UNSIGNED_BYTE, src);
+    // DS glTexImage2D: target, dummy, format, width, height, dummy, data
+    glTexImage2D(0, 0, GL_RGB, w, h, 0, src);
 }
 
-// End of frame (no extra teardown)
 void Graphics_EndFrameDS(void) {
-    // no-op
+    // nothing to do
 }

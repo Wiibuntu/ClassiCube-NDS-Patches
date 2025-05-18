@@ -7,7 +7,7 @@
 #define FP(x)        ((int)((x)*4096))
 #define MAX_VERTS    4096
 
-// DS‐friendly textured vertex
+// DS‐friendly textured‐vertex
 typedef struct {
     int           x, y, z;   // 12.4 fixed‐point
     int           u, v;      // 12.4 fixed‐point
@@ -17,7 +17,7 @@ typedef struct {
 static VertexTextured dsVertices[MAX_VERTS];
 static int           dsVertCount;
 
-// Use DS GL’s own projection/modelview enums
+// DS GL’s projection/modelview enums
 static int matrix_modes[2] = { GL_PROJECTION, GL_MODELVIEW };
 static int matrix_position  = 0; // 0 = projection, 1 = modelview
 
@@ -40,7 +40,7 @@ void Graphics_InitDS(void) {
 }
 
 void Graphics_BeginFrameDS(void) {
-    // DS GL-lite has no glClear; just reset our batch
+    // No glClear on DS GL-lite; just reset our batch
     dsVertCount = 0;
 }
 
@@ -49,8 +49,8 @@ void Graphics_SetMatrixDS(int mode) {
     matrix_position = mode;
     glMatrixMode(matrix_modes[mode]);
 }
-void Graphics_LoadMatrixDS(const float *m) { /* no-op on DS */ }
-void Graphics_MultMatrixDS(const float *m) { /* no-op on DS */ }
+void Graphics_LoadMatrixDS(const float *m) { /* no-op */ }
+void Graphics_MultMatrixDS(const float *m) { /* no-op */ }
 void Graphics_PushMatrixDS(void)       { glPushMatrix(); }
 void Graphics_PopMatrixDS(void)        { glPopMatrix(1); }
 
@@ -77,7 +77,7 @@ void Graphics_DrawBufferedDS(void) {
                   (v.color >>  8) & 0xFF,
                    v.color        & 0xFF);
         glTexCoord2t16(v.u, v.v);
-        // direct fixed-point coords
+        // raw fixed‐point coords
         glVertex3v16(v.x, v.y, v.z);
     }
     glEnd();
@@ -87,15 +87,15 @@ void Graphics_DrawBufferedDS(void) {
     dsVertCount = 0;
 }
 
-void Graphics_UpdateTextureDS(TextureID id, const BitmapCol *src) {
+void Graphics_UpdateTextureDS(int id, const BitmapCol *src) {
     int w = Graphics_GetTextureWidth(id);
     int h = Graphics_GetTextureHeight(id);
 
     glBindTexture(0, id);
-    // DS glTexImage2D: target, dummy, format, width, height, dummy, data
+    // DS’s 7-arg glTexImage2D: (target, dummy, format, width, height, palette, data)
     glTexImage2D(0, 0, GL_RGB, w, h, 0, src);
 }
 
 void Graphics_EndFrameDS(void) {
-    // nothing to do
+    // no-op
 }

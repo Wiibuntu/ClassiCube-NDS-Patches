@@ -9,8 +9,13 @@
  #include "_GraphicsBase.h"
  #include "Errors.h"
  #include "Logger.h"
- #include "Window.h"
  #include <nds.h>
+ 
+ // Screen dimensions for NDS/DSi
+ #ifndef SCREEN_W
+ #define SCREEN_W 256
+ #define SCREEN_H 192
+ #endif
  
  // Fixed-point macros (16.16)
  #define FX(x)          ((int)((x) * 65536.0f))
@@ -44,7 +49,7 @@
 	 // Setup orthographic projection
 	 glMatrixMode(GL_PROJECTION);
 	 glLoadIdentity();
-	 glOrthof32(0, Window_GetWidth(), Window_GetHeight(), 0, -1, 1);
+	 glOrthof32(0, SCREEN_W, SCREEN_H, 0, -1, 1);
 	 glMatrixMode(GL_MODELVIEW);
 	 glLoadIdentity();
  

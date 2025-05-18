@@ -7,10 +7,14 @@
 #define FP(x)        ((int)((x)*4096))
 #define MAX_VERTS    4096
 
-// DS‐friendly textured‐vertex
+// Forward‐declare core texture‐size getters to avoid implicit declarations
+extern int Graphics_GetTextureWidth(int id);
+extern int Graphics_GetTextureHeight(int id);
+
+// DS-friendly textured-vertex
 typedef struct {
-    int           x, y, z;   // 12.4 fixed‐point
-    int           u, v;      // 12.4 fixed‐point
+    int           x, y, z;   // 12.4 fixed-point
+    int           u, v;      // 12.4 fixed-point
     unsigned int  color;     // 0xRRGGBB
 } VertexTextured;
 
@@ -18,8 +22,10 @@ static VertexTextured dsVertices[MAX_VERTS];
 static int           dsVertCount;
 
 // DS GL’s projection/modelview enums
-static int matrix_modes[2] = { GL_PROJECTION, GL_MODELVIEW };
-static int matrix_position  = 0; // 0 = projection, 1 = modelview
+static int matrix_modes[2]  = { GL_PROJECTION, GL_MODELVIEW };
+static int matrix_position  = 0; // 0 = proj, 1 = modelview
+
+// ——— Initialization & frame setup ———
 
 void Graphics_InitDS(void) {
     videoSetMode(MODE_5_2D | DISPLAY_BG0_ACTIVE);
@@ -40,23 +46,33 @@ void Graphics_InitDS(void) {
 }
 
 void Graphics_BeginFrameDS(void) {
-    // No glClear on DS GL-lite; just reset our batch
+    // No glClear on DS-GL-lite; just reset our batch
     dsVertCount = 0;
 }
+
+void Graphics_EndFrameDS(void) {
+    // no-op
+}
+
+// ——— Matrix ops ———
 
 void Graphics_SetMatrixDS(int mode) {
     if (mode < 0 || mode > 1) return;
     matrix_position = mode;
     glMatrixMode(matrix_modes[mode]);
 }
-void Graphics_LoadMatrixDS(const float *m) { /* no-op */ }
-void Graphics_MultMatrixDS(const float *m) { /* no-op */ }
-void Graphics_PushMatrixDS(void)       { glPushMatrix(); }
-void Graphics_PopMatrixDS(void)        { glPopMatrix(1); }
+void Graphics_LoadMatrixDS(const float *m) { /* no-op on DS */ }
+void Graphics_MultMatrixDS(const float *m) { /* no-op on DS */ }
+void Graphics_PushMatrixDS(void)          { glPushMatrix(); }
+void Graphics_PopMatrixDS(void)           { glPopMatrix(1); }
+
+// ——— Vertex format ———
 
 void Graphics_SetVertexFormatDS(VertexFormat fmt) {
-    (void)fmt; // DS only does textured verts
+    (void)fmt; // DS only handles textured verts
 }
+
+// ——— Batching & draw ———
 
 void Graphics_QueueTexturedVertexDS(float x, float y, float z,
                                     float u, float v, unsigned int c) {
@@ -77,7 +93,7 @@ void Graphics_DrawBufferedDS(void) {
                   (v.color >>  8) & 0xFF,
                    v.color        & 0xFF);
         glTexCoord2t16(v.u, v.v);
-        // raw fixed‐point coords
+        // raw fixed-point coords
         glVertex3v16(v.x, v.y, v.z);
     }
     glEnd();
@@ -87,15 +103,14 @@ void Graphics_DrawBufferedDS(void) {
     dsVertCount = 0;
 }
 
+// ——— Texture upload ———
+
 void Graphics_UpdateTextureDS(int id, const BitmapCol *src) {
     int w = Graphics_GetTextureWidth(id);
     int h = Graphics_GetTextureHeight(id);
 
     glBindTexture(0, id);
-    // DS’s 7-arg glTexImage2D: (target, dummy, format, width, height, palette, data)
-    glTexImage2D(0, 0, GL_RGB, w, h, 0, src);
-}
-
-void Graphics_EndFrameDS(void) {
-    // no-op
+    // DS’s 8-arg glTexImage2D:
+    //   target, dummy, format, width, height, paletteBank, param, dataPtr
+    glTexImage2D(0, 0, GL_RGB, w, h, 0, 0, src);
 }
